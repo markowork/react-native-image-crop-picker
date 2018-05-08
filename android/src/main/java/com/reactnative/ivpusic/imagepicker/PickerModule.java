@@ -18,6 +18,8 @@ import android.support.v4.content.FileProvider;
 import android.util.Base64;
 import android.webkit.MimeTypeMap;
 
+import com.theartofdev.edmodo.cropper.CropImage;
+
 import com.facebook.react.bridge.ActivityEventListener;
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.Promise;
@@ -596,12 +598,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
             );
         }
         configureCropperColors(options);
-
-        UCrop.of(uri, Uri.fromFile(new File(this.getTmpDir(activity), UUID.randomUUID().toString() + ".jpg")))
-                .withMaxResultSize(width, height)
-                .withAspectRatio(width, height)
-                .withOptions(options)
-                .start(activity);
+        CropImage.activity(uri).setAspectRatio(1,1).start(getCurrentActivity());
     }
 
     private void imagePickerResult(Activity activity, final int requestCode, final int resultCode, final Intent data) {
@@ -702,6 +699,23 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
             cameraPickerResult(activity, requestCode, resultCode, data);
         } else if (requestCode == UCrop.REQUEST_CROP) {
             croppingResult(activity, requestCode, resultCode, data);
+        } else if (requestCode == CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE) {
+            CropImage.ActivityResult result = CropImage.getActivityResult(data);
+            if (resultCode == Activity.RESULT_OK) {
+                Uri resultUri = result.getUri();
+                if (resultUri != null) {
+                    try {
+                            resultCollector.setWaitCount(1);
+                            resultCollector.notifySuccess(getSelection(activity, resultUri, false));
+                        } catch (Exception ex) {
+                            resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
+                        }
+                } else {
+                    resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, "Cannot find image data");
+                }
+            } else if (resultCode == CropImage.CROP_IMAGE_ACTIVITY_RESULT_ERROR_CODE) {
+                resultCollector.notifyProblem(E_PICKER_CANCELLED_KEY, E_PICKER_CANCELLED_MSG);
+            }
         }
     }
 
